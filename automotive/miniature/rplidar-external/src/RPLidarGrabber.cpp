@@ -17,12 +17,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#include <opendavinci/odcore/wrapper/SerialPort.h>
-#include <opendavinci/odcore/wrapper/SerialPortFactory.h>
+#include <iostream>
 
 #include "RPLidarGrabber.h"
-//#include "RPLidarSerialInterface.cpp"
-#include "rplidar_reader.cpp"
+#include "rplidar.h"
+
+#ifndef _countof
+#define _countof(_Array) (int)(sizeof(_Array) / sizeof(_Array[0]))
+#endif
 
 namespace automotive {
     namespace miniature {
@@ -30,7 +32,7 @@ namespace automotive {
         using namespace odcore;
         using namespace odcore::data;
         using namespace odcore::wrapper;
-
+        using namespace rp::standalone::rplidar;
 
         class RPLidarSerialInterface : public odcore::io::StringListener {
             void nextString(const std::string &s)
@@ -55,6 +57,82 @@ namespace automotive {
 
         void RPLidarGrabber::tearDown() {
             // This method will be call automatically _after_ return from body().
+        }
+
+bool RPLidarGrabber::checkRPLIDARHealth(RPlidarDriver * drv)
+{
+    u_result     op_result;
+    rplidar_response_device_health_t healthinfo;
+
+
+    op_result = drv->getHealth(healthinfo);
+    if (op_result==0) { // the macro IS_OK is the preperred way to judge whether the operation is succeed.
+        printf("RPLidar health status : %d\n", healthinfo.status);
+        if (healthinfo.status == RPLIDAR_STATUS_ERROR) {
+            fprintf(stderr, "Error, rplidar internal error detected. Please reboot the device to retry.\n");
+            // enable the following code if you want rplidar to be reboot by software
+            // drv->reset();
+            return false;
+        } else {
+            return true;
+        }
+
+    } else {
+        fprintf(stderr, "Error, cannot retrieve the lidar health code: %x\n", op_result);
+        return false;
+    }
+}
+
+        int RPLidarGrabber::readOnce() {
+            const char * opt_com_path = "/dev/ttyUSB0";
+            _u32         opt_com_baudrate = 115200;
+            
+            // create the driver instance
+            RPlidarDriver * drv = RPlidarDriver::CreateDriver(RPlidarDriver::DRIVER_TYPE_SERIALPORT);
+            
+            if (!drv) {
+                cerr<< "insufficent memory, exit"<<endl;
+                return -2;
+            }
+
+            // make connection...
+            if (drv->connect(opt_com_path, opt_com_baudrate)!=0) {
+                cerr<<"Error, cannot bind to the specified serial port "<<opt_com_path<<endl;
+                return -2;
+            }
+
+            // check health...
+            if (!checkRPLIDARHealth(drv)) {
+                return -2;
+            }
+
+
+            // start scan...
+            drv->startScan();
+
+            // fetch result and print it out...
+            {
+                rplidar_response_measurement_node_t nodes[360*2];
+                size_t   count = _countof(nodes);
+
+                int result = drv->grabScanData(nodes, count);
+
+                if (result==0) {
+                    drv->ascendScanData(nodes, count);
+                    for (int pos = 0; pos < (int)count ; ++pos) {
+                        printf("%s theta: %03.2f Dist: %08.2f Q: %d \n", 
+                            (nodes[pos].sync_quality & RPLIDAR_RESP_MEASUREMENT_SYNCBIT) ?"S ":"  ", 
+                            (nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f,
+                            nodes[pos].distance_q2/4.0f,
+                            nodes[pos].sync_quality >> RPLIDAR_RESP_MEASUREMENT_QUALITY_SHIFT);
+                    }
+                }
+
+            }
+
+            // done!
+            RPlidarDriver::DisposeDriver(drv);
+            return 0;
         }
 
         // This method will do the main data processing job.
@@ -110,7 +188,7 @@ namespace automotive {
             while (getModuleStateAndWaitForRemainingTimeInTimeslice() == odcore::data::dmcp::ModuleStateMessage::RUNNING) {
                 
                 cout << "RPLidarGrabber::body" << endl;
-                rplidar_read_once();
+                readOnce();
 //                Container c(s);
 //                // Time stamp data before storing.
 //                c.setReceivedTimeStamp(TimeStamp());

@@ -31,20 +31,23 @@ INCLUDE (CheckCxxTestEnvironment)
 
 ###########################################################################
 # Add subdirectories.
-ADD_SUBDIRECTORY (boxparker)
-ADD_SUBDIRECTORY (driver)
-ADD_SUBDIRECTORY (lanedetector)
-ADD_SUBDIRECTORY (lanefollower)
-ADD_SUBDIRECTORY (overtaker)
-ADD_SUBDIRECTORY (proxy)
-ADD_SUBDIRECTORY (rplidar)
-ADD_SUBDIRECTORY (sidewaysparker)
-ADD_SUBDIRECTORY (simpledriver)
-ADD_SUBDIRECTORY (VCR)
+#ADD_SUBDIRECTORY (boxparker)
+#ADD_SUBDIRECTORY (driver)
+#ADD_SUBDIRECTORY (lanedetector)
+#ADD_SUBDIRECTORY (lanefollower)
+#ADD_SUBDIRECTORY (overtaker)
+#ADD_SUBDIRECTORY (proxy)
+ADD_SUBDIRECTORY (rplidarsdk)
+#ADD_SUBDIRECTORY (rplidar)
+ADD_SUBDIRECTORY (rplidar-external)
+#ADD_SUBDIRECTORY (rplidar-reverse)
+#ADD_SUBDIRECTORY (sidewaysparker)
+#ADD_SUBDIRECTORY (simpledriver)
+#ADD_SUBDIRECTORY (VCR)
 
 # Add subdirectories for studies. These parts of the software will only
 # be compiled and executed if libodsimulation is available.
-ADD_SUBDIRECTORY (studies)
+#ADD_SUBDIRECTORY (studies)
 
 ###########################################################################
 # Enable CPack to create .deb and .rpm.

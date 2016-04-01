@@ -34,15 +34,15 @@
  * 
  */
 
-#include "rplidar.h"
+#include "arch/linux/arch_linux.h"
+#include "arch/linux/net_serial.h"
 #include <termios.h>
 #include <sys/select.h>
 
-namespace automotive {
-    namespace miniature {
+namespace rp{ namespace arch{ namespace net{
 
 raw_serial::raw_serial()
-    : serial_rxtx()
+    : rp::hal::serial_rxtx()
     , _baudrate(0)
     , _flags(0)
     , serial_fd(-1)
@@ -129,7 +129,6 @@ bool raw_serial::open(const char * portname, uint32_t baudrate, uint32_t flags)
     ioctl(serial_fd, TIOCMBIC, &controll);
     
     _is_serial_opened = true;
-    flags=flags;
     return true;
 }
 
@@ -180,13 +179,11 @@ int raw_serial::recvdata(unsigned char * data, size_t size)
 void raw_serial::flush( _u32 flags)
 {
     tcflush(serial_fd,TCIFLUSH); 
-    flags=flags;
 }
 
 int raw_serial::waitforsent(_u32 timeout, size_t * returned_size)
 {
     if (returned_size) *returned_size = required_tx_cnt;
-    timeout=timeout;
     return 0;
 }
 
@@ -195,7 +192,6 @@ int raw_serial::waitforrecv(_u32 timeout, size_t * returned_size)
     if (!isOpened() ) return -1;
    
     if (returned_size) *returned_size = required_rx_cnt;
-    timeout=timeout;
     return 0;
 }
 
@@ -226,7 +222,7 @@ int raw_serial::waitfordata(size_t data_count, _u32 timeout, size_t * returned_s
             return 0;
         }
     }
-std::cerr<<"x"<<std::endl;
+
     while ( isOpened() )
     {
         /* Do the select */
@@ -244,7 +240,7 @@ std::cerr<<"x"<<std::endl;
         }
         else
         {
-            // data available
+            // data avaliable
             assert (FD_ISSET(serial_fd, &input_set));
 
 
@@ -252,12 +248,10 @@ std::cerr<<"x"<<std::endl;
 std::cerr<<"rs "<<(long)*returned_size<<" dc "<<(long)data_count<<std::endl;
             if (*returned_size >= data_count)
             {
-std::cerr<<"ret size ok"<<std::endl;
                 return 0;
             }
             else 
             {
-std::cerr<<"ret size not ok"<<std::endl;
                 int remain_timeout = timeout_val.tv_sec*1000000 + timeout_val.tv_usec;
                 int expect_remain_time = (data_count - *returned_size)*1000000*8/_baudrate;
                 if (remain_timeout > expect_remain_time)
@@ -319,12 +313,14 @@ switch (baud) {
     return -1;
 }
 
- //end rp::arch::net
+}}} //end rp::arch::net
 
+//begin rp::hal
+namespace rp{ namespace hal{
 
 serial_rxtx * serial_rxtx::CreateRxTx()
 {
-    return new raw_serial();
+    return new rp::arch::net::raw_serial();
 }
 
 void serial_rxtx::ReleaseRxTx(serial_rxtx *rxtx)
