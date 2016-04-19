@@ -112,13 +112,13 @@ class DataModelGenerator implements IGenerator {
 				val enumDescriptions = collectEnumsFromMessage(pdl, e)
 				fsa.generateFile("include/" + toplevelIncludeFolder + "/generated/" + pdlToDirectory + "/" + e.message.toString() + ".h", generateHeaderFileContent(toplevelIncludeFolder, generatedHeadersFile, pdl, e, enumDescriptions))
 				fsa.generateFile("src/generated/" + pdlToDirectory + "/" + e.message.toString() + ".cpp", generateImplementationFileContent(pdl, e, toplevelIncludeFolder, "generated/" + pdlToDirectory, enumDescriptions))
-				fsa.generateFile("testsuites/" + pdl.package.toString().replaceAll("\\.", "_") + "_" + e.message.toString().replaceAll("\\.", "_") + "TestSuite.h", generateTestSuiteContent(pdl, e, toplevelIncludeFolder, generatedHeadersFile, enumDescriptions))
+				fsa.generateFile("testsuites/" + pdl.package.toString().replaceAll("\\.", "_") + "_" + e.message.toString().replaceAll("\\.", "_") + "TestSuite.h", generateTestSuiteContent(pdl, e, toplevelIncludeFolder, "generated/" + pdlToDirectory, generatedHeadersFile, enumDescriptions))
 			}
 			else {
 				val enumDescriptions = collectEnumsFromMessage(pdl, e)
 				fsa.generateFile("include/" + toplevelIncludeFolder + "/generated/" + e.message.toString() + ".h", generateHeaderFileContent(toplevelIncludeFolder, generatedHeadersFile, pdl, e, enumDescriptions))
 				fsa.generateFile("src/generated/" + e.message.toString() + ".cpp", generateImplementationFileContent(pdl, e, toplevelIncludeFolder, "generated", enumDescriptions))
-				fsa.generateFile("testsuites/" + e.message.toString().replaceAll("\\.", "_") + "TestSuite.h", generateTestSuiteContent(pdl, e, toplevelIncludeFolder, generatedHeadersFile, enumDescriptions))
+				fsa.generateFile("testsuites/" + e.message.toString().replaceAll("\\.", "_") + "TestSuite.h", generateTestSuiteContent(pdl, e, toplevelIncludeFolder, "generated", generatedHeadersFile, enumDescriptions))
 			}
 		}
 	}
@@ -1439,7 +1439,7 @@ namespace «s.get(i)» {
 	'''
 
 	// Generate the test suite content (.h).
-	def generateTestSuiteContent(PackageDeclaration pdl, Message msg, String toplevelIncludeFolder, String generatedHeadersFile, HashMap<String, EnumDescription> enums) '''
+	def generateTestSuiteContent(PackageDeclaration pdl, Message msg, String toplevelIncludeFolder, String includeDirectoryPrefix, String generatedHeadersFile, HashMap<String, EnumDescription> enums) '''
 /*
  * This software is open source. Please see COPYING and AUTHORS for further information.
  *
@@ -1466,6 +1466,11 @@ namespace «s.get(i)» {
 #include "opendavinci/odcore/strings/StringToolbox.h"
 
 #include "«toplevelIncludeFolder»/GeneratedHeaders_«generatedHeadersFile + ".h"»"
+«IF msg.message.split("\\.").length > 1 /* Here, we include our own header file. */»
+#include "«toplevelIncludeFolder»/«includeDirectoryPrefix + "/" + msg.message.substring(0, msg.message.lastIndexOf('.')).replaceAll("\\.", "/") + "/" + msg.message.substring(msg.message.lastIndexOf('.') + 1)».h"
+«ELSE»
+#include "«toplevelIncludeFolder»/«includeDirectoryPrefix + "/" + msg.message.substring(msg.message.lastIndexOf('.') + 1)».h"
+«ENDIF»
 
 «FOR a : msg.attributes /*These lines include header files for user generated types used in other messages.*/»
 	«IF a.scalar != null»
@@ -1812,9 +1817,17 @@ class «IF pdl != null && pdl.package != null && pdl.package.length > 0»«pdl.p
 						TS_ASSERT(odcore::strings::StringToolbox::equalsIgnoreCase(«obj».get«a.fixedarray.name.toFirstUpper»()[i], sstr.str()));
 					}
 				«ENDIF»
-				«IF (a.fixedarray.type.equalsIgnoreCase("int32") || a.fixedarray.type.equalsIgnoreCase("uint32"))»
-					for(uint32_t i = 0; i < «obj».getSize_«a.fixedarray.name.toFirstUpper»(); i++) {
+				«IF (a.fixedarray.type.equalsIgnoreCase("uint32"))»
+					for(«a.fixedarray.type.toLowerCase»_t i = 0; i < «obj».getSize_«a.fixedarray.name.toFirstUpper»(); i++) {
 						TS_ASSERT(«obj».get«a.fixedarray.name.toFirstUpper»()[i] == «testValuesMap.get(a.fixedarray.type)» + i);
+					}
+				«ENDIF»
+				«IF (a.fixedarray.type.equalsIgnoreCase("int32"))»
+				{
+				    uint32_t size=0;
+					    for(«a.fixedarray.type.toLowerCase»_t i = 0; size < «obj».getSize_«a.fixedarray.name.toFirstUpper»(); size++, i++) {
+						    TS_ASSERT(«obj».get«a.fixedarray.name.toFirstUpper»()[i] == «testValuesMap.get(a.fixedarray.type)» + i);
+					    }
 					}
 				«ENDIF»
 				«IF (a.fixedarray.type.equalsIgnoreCase("char"))»
@@ -2086,12 +2099,24 @@ class «IF pdl != null && pdl.package != null && pdl.package.length > 0»«pdl.p
 						TS_ASSERT(odcore::strings::StringToolbox::equalsIgnoreCase(«objA».get«a.fixedarray.name.toFirstUpper»()[i], sstr.str()));
 					}
 				«ENDIF»
-				«IF (a.fixedarray.type.equalsIgnoreCase("int32") || a.fixedarray.type.equalsIgnoreCase("uint32"))»
+				«IF (a.fixedarray.type.equalsIgnoreCase("uint32"))»
 					for(uint32_t i = 0; i < «objA».getSize_«a.fixedarray.name.toFirstUpper»(); i++) {
 						«objA».get«a.fixedarray.name.toFirstUpper»()[i] = «testValuesMap.get(a.fixedarray.type)» + i;
 					}
 					for(uint32_t i = 0; i < «objA».getSize_«a.fixedarray.name.toFirstUpper»(); i++) {
 						TS_ASSERT(«objA».get«a.fixedarray.name.toFirstUpper»()[i] == «testValuesMap.get(a.fixedarray.type)» + i);
+					}
+				«ENDIF»
+				«IF (a.fixedarray.type.equalsIgnoreCase("int32"))»
+					{
+					    uint32_t size=0;
+					    for(int32_t i = 0; size < «objA».getSize_«a.fixedarray.name.toFirstUpper»(); size++, i++) {
+						    «objA».get«a.fixedarray.name.toFirstUpper»()[i] = «testValuesMap.get(a.fixedarray.type)» + i;
+					    }
+					    size=0;
+					    for(int32_t i = 0; size < «objA».getSize_«a.fixedarray.name.toFirstUpper»(); size++, i++) {
+						    TS_ASSERT(«objA».get«a.fixedarray.name.toFirstUpper»()[i] == «testValuesMap.get(a.fixedarray.type)» + i);
+					    }
 					}
 				«ENDIF»
 				«IF (a.fixedarray.type.equalsIgnoreCase("char"))»

@@ -28,7 +28,6 @@
 
 #include "CANDevice.h"
 #include "GenericCANMessageListener.h"
-#include "MessageToCANDataStore.h"
 
 namespace automotive {
     namespace odcantools {
@@ -40,8 +39,7 @@ namespace automotive {
         CANDevice::CANDevice(const string &deviceNode, GenericCANMessageListener &listener) :
             m_deviceNode(deviceNode),
             m_handle(NULL),
-            m_listener(listener),
-            m_messageToCANDataStore() {
+            m_listener(listener) {
             CLOG << "[CANDevice] Opening " << m_deviceNode << "... ";
             m_handle = LINUX_CAN_Open(m_deviceNode.c_str(), O_RDWR);
             if (m_handle == NULL) {
@@ -50,11 +48,6 @@ namespace automotive {
             else {
                 CLOG << "done." << endl;
             }
-
-            // Create the MessageToCANDataStore to write Containers to the CAN bus.
-            // This needs to be an unique_ptr due to the circular dependencies between
-            // the two classes.
-            m_messageToCANDataStore = unique_ptr<MessageToCANDataStore>(new MessageToCANDataStore(*this));
         }
 
         CANDevice::~CANDevice() {
@@ -63,10 +56,6 @@ namespace automotive {
                 CAN_Close(m_handle);
             }
             CLOG << "done." << endl;
-        }
-
-        MessageToCANDataStore& CANDevice::getMessageToCANDataStore() {
-            return *m_messageToCANDataStore;
         }
 
         bool CANDevice::isOpen() const {
@@ -82,7 +71,7 @@ namespace automotive {
                 msg.LEN = LENGTH;
                 uint64_t data = gcm.getData();
                 for (uint8_t i = 0; i < LENGTH; i++) {
-                    msg.DATA[i] = (data & 0xFF);
+                    msg.DATA[LENGTH-1-i] = (data & 0xFF);
                     data = data >> 8;
                 }
                 int32_t errorCode = CAN_Write(m_handle, &msg);
@@ -116,7 +105,7 @@ namespace automotive {
                     uint64_t data = 0;
                     for (uint8_t i = 0; i < message.Msg.LEN; i++) {
                         CLOG1 << static_cast<uint32_t>(message.Msg.DATA[i]) << " ";
-                        data |= (message.Msg.DATA[i] << (i*8));
+                        data |= (message.Msg.DATA[i] << ((message.Msg.LEN-1-i)*8));
                     }
                     CLOG1 << endl;
                     gcm.setData(data);

@@ -168,56 +168,58 @@ class MyVisitable : public Serializable, public Visitable {
 
         virtual ostream& operator<<(ostream &out) const {
             SerializationFactory& sf=SerializationFactory::getInstance();
-		
-			std::shared_ptr<Serializer> s = sf.getSerializer(out);
-		
-			s->write(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'1', NullType> > > > >::RESULT,
-					m_att1);
 
-			s->write(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'2', NullType> > > > >::RESULT,
-					m_att2);
+            std::shared_ptr<Serializer> s = sf.getSerializer(out);
+        
+            s->write(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'1', NullType> > > > >::RESULT,
+                    m_att1);
 
-			s->write(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'3', NullType> > > > >::RESULT,
-					m_att3);
+            s->write(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'2', NullType> > > > >::RESULT,
+                    m_att2);
 
-			s->write(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'4', NullType> > > > >::RESULT,
-					m_att4);
+            s->write(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'3', NullType> > > > >::RESULT,
+                    m_att3);
 
-			s->write(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'5', NullType> > > > >::RESULT,
-					m_att5);
+            s->write(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'4', NullType> > > > >::RESULT,
+                    m_att4);
 
-			return out;
+            s->write(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'5', NullType> > > > >::RESULT,
+                    m_att5);
+
+            return out;
         }
 
         virtual istream& operator>>(istream &in) {
             SerializationFactory& sf=SerializationFactory::getInstance();
-		
-			std::shared_ptr<Deserializer> d = sf.getDeserializer(in);
-		
-			d->read(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'1', NullType> > > > >::RESULT,
-					m_att1);
+        
+            std::shared_ptr<Deserializer> d = sf.getDeserializer(in);
+        
+            d->read(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'1', NullType> > > > >::RESULT,
+                    m_att1);
 
-			d->read(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'2', NullType> > > > >::RESULT,
-					m_att2);
+            d->read(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'2', NullType> > > > >::RESULT,
+                    m_att2);
 
-			d->read(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'3', NullType> > > > >::RESULT,
-					m_att3);
+            d->read(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'3', NullType> > > > >::RESULT,
+                    m_att3);
 
-			d->read(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'4', NullType> > > > >::RESULT,
-					m_att4);
+            d->read(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'4', NullType> > > > >::RESULT,
+                    m_att4);
 
-			d->read(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'5', NullType> > > > >::RESULT,
-					m_att5);
+            d->read(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'5', NullType> > > > >::RESULT,
+                    m_att5);
 
-			return in;
+            return in;
         }
 
         virtual void accept(odcore::base::Visitor &v) {
+            v.beginVisit();
             v.visit(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'1', NullType> > > > >::RESULT, 1, "MyVisitable::att1", "att1", m_att1);
             v.visit(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'2', NullType> > > > >::RESULT, 2, "MyVisitable::att2", "att2", m_att2);
             v.visit(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'3', NullType> > > > >::RESULT, 3, "MyVisitable::att3", "att3", m_att3);
             v.visit(CRC32 < CharList<'a', CharList<'t', CharList<'t', CharList<'4', NullType> > > > >::RESULT, 4, "MyVisitable::att4", "att4", m_att4);
             m_att5.accept(v);
+            v.endVisit();
         }
 
     public:
@@ -340,6 +342,40 @@ class FieldTest : public CxxTest::TestSuite {
 
             d2.accept(mtvv);
             TS_ASSERT(strcmp(d.data, d2.data) == 0);
+        }
+
+        void testMessageExtractField() {
+            // Create a visitable data structure.
+            MyVisitable d;
+            d.m_att1 = 10;
+            d.m_att2 = 1.234;
+            d.m_att3 = -4.5789;
+            d.m_att4 = "Hello World!";
+            d.m_att5.m_double = 1.234;
+
+            // Create generic representation from our data structure.
+            MessageFromVisitableVisitor mfvv;
+            d.accept(mfvv);
+            Message msg = mfvv.getMessage();
+
+            double value = 0;
+            bool found = false;
+            bool extracted = false;
+
+            found = false; extracted = false; value = msg.getValueFromScalarField<double>(0, 1, found, extracted);
+            TS_ASSERT(found); TS_ASSERT(extracted); TS_ASSERT_DELTA(value, 10, 1e-5);
+
+            found = false; extracted = false; value = msg.getValueFromScalarField<double>(0, 2, found, extracted);
+            TS_ASSERT(found); TS_ASSERT(extracted); TS_ASSERT_DELTA(value, 1.234, 1e-5);
+
+            found = false; extracted = false; value = msg.getValueFromScalarField<double>(0, 3, found, extracted);
+            TS_ASSERT(found); TS_ASSERT(extracted); TS_ASSERT_DELTA(value, -4.5789, 1e-5);
+
+            found = false; extracted = true; value = msg.getValueFromScalarField<double>(0, 4, found, extracted);
+            TS_ASSERT(found); TS_ASSERT(!extracted); TS_ASSERT_DELTA(value, 0, 1e-5);
+
+            found = true; extracted = true; value = msg.getValueFromScalarField<double>(0, 6, found, extracted);
+            TS_ASSERT(!found); TS_ASSERT(!extracted);
         }
 };
 
