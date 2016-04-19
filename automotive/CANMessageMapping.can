@@ -20,8 +20,8 @@ mapping EmptyCanMessage {
 }
 
 test automotive.vehicle.WheelSpeed {
-  0x123: 0x223C2217220D2207
-  0x125: 0x22392223220F2204
+  0x123: 0x3C2217220D220722
+  0x125: 0x392223220F220422
   
   id 1 = 87.64
   id 2 = 87.27

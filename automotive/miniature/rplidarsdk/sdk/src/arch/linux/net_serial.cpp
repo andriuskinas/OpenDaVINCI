@@ -245,9 +245,10 @@ int raw_serial::waitfordata(size_t data_count, _u32 timeout, size_t * returned_s
 
 
             if ( ioctl(serial_fd, FIONREAD, returned_size) == -1) return ANS_DEV_ERR;
-std::cerr<<"rs "<<(long)*returned_size<<" dc "<<(long)data_count<<std::endl;
+std::cerr<<"\r"<<"rs "<<(long)*returned_size<<" dc "<<(long)data_count<<"     "<<std::flush;
             if (*returned_size >= data_count)
             {
+                //std::cerr<<"OK "<<std::endl;
                 return 0;
             }
             else 

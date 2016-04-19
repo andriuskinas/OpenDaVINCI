@@ -18,6 +18,8 @@
  */
 
 #include <iostream>
+#include <cstring>
+#include <algorithm>
 
 #include "RPLidarGrabber.h"
 #include "rplidar.h"
@@ -25,7 +27,7 @@
 #ifndef _countof
 #define _countof(_Array) (int)(sizeof(_Array) / sizeof(_Array[0]))
 #endif
-
+#define DEG2RAD(x) ((x)*M_PI/180.)
 namespace automotive {
     namespace miniature {
 
@@ -65,6 +67,7 @@ bool RPLidarGrabber::checkRPLIDARHealth(RPlidarDriver * drv)
     rplidar_response_device_health_t healthinfo;
 
 
+                cout << "checking health" << endl;
     op_result = drv->getHealth(healthinfo);
     if (op_result==0) { // the macro IS_OK is the preperred way to judge whether the operation is succeed.
         printf("RPLidar health status : %d\n", healthinfo.status);
@@ -141,11 +144,11 @@ bool RPLidarGrabber::checkRPLIDARHealth(RPlidarDriver * drv)
             const char* SERIAL_PORT = "/dev/ttyUSB0";
             const uint32_t BAUD_RATE = 115200;
             
+            // create the driver instance
+            RPlidarDriver * drv = RPlidarDriver::CreateDriver(RPlidarDriver::DRIVER_TYPE_SERIALPORT);
             try {
                 //std::shared_ptr<SerialPort> serial_port(SerialPortFactory::createSerialPort(SERIAL_PORT, BAUD_RATE));
 
-                // create the driver instance
-                RPlidarDriver * drv = RPlidarDriver::CreateDriver(RPlidarDriver::DRIVER_TYPE_SERIALPORT);
                 
                 cout << "created driver" << endl;
                 if (!drv) {
@@ -188,12 +191,64 @@ bool RPLidarGrabber::checkRPLIDARHealth(RPlidarDriver * drv)
             while (getModuleStateAndWaitForRemainingTimeInTimeslice() == odcore::data::dmcp::ModuleStateMessage::RUNNING) {
                 
                 cout << "RPLidarGrabber::body" << endl;
-                readOnce();
-//                Container c(s);
-//                // Time stamp data before storing.
-//                c.setReceivedTimeStamp(TimeStamp());
-//                // Share data.
-//                getConference().send(c);
+                
+                rplidar_response_measurement_node_t nodes[360*2];
+                size_t   count = _countof(nodes);
+
+                int op_result = drv->grabScanData(nodes, count);
+
+                if (op_result == 0) {
+                    op_result = drv->ascendScanData(nodes, count);
+
+//                    float angle_min = DEG2RAD(0.0f);
+//                    float angle_max = DEG2RAD(359.0f);
+                    if (op_result == RESULT_OK) {
+                        if (true) {
+                            const int angle_compensate_nodes_count = 360;
+                            const int angle_compensate_multiple = 1;
+                            int angle_compensate_offset = 0;
+                            rplidar_response_measurement_node_t angle_compensate_nodes[angle_compensate_nodes_count];
+                            memset(angle_compensate_nodes, 0, angle_compensate_nodes_count*sizeof(rplidar_response_measurement_node_t));
+                            size_t i = 0, j = 0;
+                            for( ; i < count; i++ ) {
+                                if (nodes[i].distance_q2 != 0) {
+                                    float angle = (float)((nodes[i].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f);
+                                    int angle_value = (int)(angle * angle_compensate_multiple);
+                                    if ((angle_value - angle_compensate_offset) < 0) angle_compensate_offset = angle_value;
+                                    for (j = 0; j < angle_compensate_multiple; j++) {
+                                        angle_compensate_nodes[angle_value-angle_compensate_offset+j] = nodes[i];
+                                    }
+                                }
+                            }
+          
+                        cerr<<"SCAN OK"<<endl;
+                        } 
+//                        else {
+//                            int start_node = 0, end_node = 0;
+//                            int i = 0;
+//                            // find the first valid node and last valid node
+//                            while (nodes[i++].distance_q2 == 0);
+//                            start_node = i-1;
+//                            i = count -1;
+//                            while (nodes[i--].distance_q2 == 0);
+//                            end_node = i+1;
+
+//                            angle_min = DEG2RAD((float)(nodes[start_node].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f);
+//                            angle_max = DEG2RAD((float)(nodes[end_node].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f);
+
+//                        cerr<<"SCAN OK (unreachable)"<<endl;
+//                       }
+                    } else {
+                        cerr<<"Ascend Scan Data failed"<<endl;
+                    }
+//                        Container c(s);
+//                        // Time stamp data before storing.
+//                        c.setReceivedTimeStamp(TimeStamp());
+//                        // Share data.
+//                        getConference().send(c);
+                    }else {
+                        cerr<<"Grab scan data failed"<<endl;
+                    }
             }
             return odcore::data::dmcp::ModuleExitCodeMessage::OKAY;
         }

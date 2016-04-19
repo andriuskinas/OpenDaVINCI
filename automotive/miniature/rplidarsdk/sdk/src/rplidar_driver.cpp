@@ -40,7 +40,7 @@
 #include "hal/locker.h"
 #include "hal/event.h"
 #include "rplidar_driver_serial.h"
-
+#include<cstdio>
 #ifndef min
 #define min(a,b)            (((a) < (b)) ? (a) : (b))
 #endif
@@ -172,25 +172,30 @@ u_result RPlidarDriverSerialImpl::getDeviceInfo(rplidar_response_device_info_t &
 
     {
         rp::hal::AutoLocker l(_lock);
+        std::cerr<<"A"<<std::endl;
         if (IS_FAIL(ans = _sendCommand(RPLIDAR_CMD_GET_DEVICE_INFO))) {
             return ans;
         }
 
+        std::cerr<<"B"<<std::endl;
         rplidar_ans_header_t response_header;
         if (IS_FAIL(ans = _waitResponseHeader(&response_header, timeout))) {
             return ans;
         }
 
+        std::cerr<<"C"<<std::endl;
         // verify whether we got a correct header
         if (response_header.type != RPLIDAR_ANS_TYPE_DEVINFO) {
             return RESULT_INVALID_DATA;
         }
 
+        std::cerr<<"D"<<std::endl;
         _u32 header_size = (response_header.size_q30_subtype & RPLIDAR_ANS_HEADER_SIZE_MASK);
         if (header_size < sizeof(rplidar_response_device_info_t)) {
             return RESULT_INVALID_DATA;
         }
 
+        std::cerr<<"E"<<std::endl;
         if (_rxtx->waitfordata(header_size, timeout) != rp::hal::serial_rxtx::ANS_OK) {
             return RESULT_OPERATION_TIMEOUT;
         }

@@ -31,7 +31,7 @@ INCLUDE (CheckCxxTestEnvironment)
 
 ###########################################################################
 # Add subdirectories.
-#ADD_SUBDIRECTORY (boxparker)
+ADD_SUBDIRECTORY (boxparker)
 #ADD_SUBDIRECTORY (driver)
 #ADD_SUBDIRECTORY (lanedetector)
 #ADD_SUBDIRECTORY (lanefollower)

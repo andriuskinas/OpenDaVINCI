@@ -152,7 +152,9 @@ int main(int argc, const char * argv[]) {
 
         // retrieving the device info
         ////////////////////////////////////////
+        fprintf(stderr, "before.\n");
         op_result = drv->getDeviceInfo(devinfo);
+        fprintf(stderr, "after.\n");
 
         if (IS_FAIL(op_result)) {
             if (op_result == RESULT_OPERATION_TIMEOUT) {
